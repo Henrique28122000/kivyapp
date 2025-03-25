@@ -35,8 +35,16 @@ jobs:
           command: buildozer android debug
           buildozer_version: master
 
-      - name: Upload artifacts
+      - name: Verify APK
+        run: |
+          if [ ! -f "./bin/myapp.apk" ]; then
+            echo "Build failed: APK not found"
+            exit 1
+          fi
+
+      - name: Upload APK
         uses: actions/upload-artifact@v2
         with:
           name: package
-          path: ${{ steps.buildozer.outputs.filename }}
+          path: ./bin/myapp.apk
+          
