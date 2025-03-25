@@ -1,33 +1,42 @@
-name: Build APK
-
+name: CI
 on:
   push:
-    branches:
-      - main  # Pode alterar para qualquer branch que você usar
+    branches: [ main ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Clonar repositório
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v2
 
-      - name: Instalar dependências
+      # used to cache dependencies with a timeout
+      - name: Get Date
+        id: get-date
         run: |
-          sudo apt update && sudo apt install -y python3 python3-pip openjdk-17-jdk
-          pip install buildozer cython kivy yt-dlp
+          echo "::set-output name=date::$(/bin/date -u "+%Y%m%d")"
+        shell: bash
 
-      - name: Criar arquivo de configuração do Buildozer
-        run: buildozer init
+      - name: Cache Buildozer global directory
+        uses: actions/cache@v2
+        with:
+          path: .buildozer_global
+          key: buildozer-global-${{ hashFiles('buildozer.spec') }} # Replace with your path
 
-      - name: Modificar dependências no Buildozer
-        run: sed -i 's/^requirements = .*/requirements = python3, kivy, yt-dlp/' buildozer.spec
+      - uses: actions/cache@v2
+        with:
+          path: .buildozer
+          key: ${{ runner.os }}-${{ steps.get-date.outputs.date }}-${{ hashFiles('buildozer.spec') }}
 
-      - name: Construir APK
-        run: buildozer -v android debug
+      - name: Build with Buildozer
+        uses: ArtemSBulgakov/buildozer-action@v1
+        id: buildozer
+        with:
+          command: buildozer android debug
+          buildozer_version: master
 
-      - name: Upload do APK
+      - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
-          name: YouTubeDownloader-APK
-          path: bin/*.apk
+          name: package
+          path: ${{ steps.buildozer.outputs.filename }}
